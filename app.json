@@ -1,9 +1,5 @@
 {
-  "buildpacks": [
-    {
-      "url": "heroku/ruby"
-    }
-  ],
+  "image": "heroku/ruby",
   "env": {
     "JINJER_COMPANY_CODE": {},
     "JINJER_EMAIL": {},

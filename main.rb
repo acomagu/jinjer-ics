@@ -46,13 +46,17 @@ def main(user_code)
   ] + shifts.reduce([]){ |prev, shift|
       prev + [
         "BEGIN:VEVENT",
-        "DTSTAMP;VALUE=DATE-TIME:" + Time.now.iso8601,
-        "DTSTART;TZID=UTC;VALUE=DATE-TIME:" + shift.start.iso8601,
-        "DTEND;TZID=UTC;VALUE=DATE-TIME:" + shift.end.iso8601,
+        "DTSTAMP;VALUE=DATE-TIME:" + formatdate(Time.now),
+        "DTSTART;TZID=UTC;VALUE=DATE-TIME:" + formatdate(shift.start),
+        "DTEND;TZID=UTC;VALUE=DATE-TIME:" + formatdate(shift.end),
         "SUMMARY:アルバイト",
         "END:VEVENT",
       ]
   } + ["END:VCALENDAR", ""]).join("\n")
+end
+
+def formatdate(d)
+  d.getutc.strftime('%Y%m%dT%H%M%S%z')
 end
 
 server = WEBrick::HTTPServer.new(:Port => ENV['PORT'])
