@@ -5,6 +5,9 @@ require 'date'
 
 Shift = Struct.new(:start, :end)
 
+class InvalidUserCodeError < StandardError
+end
+
 def main(user_code)
   agent = Mechanize.new
   p agent.post(
@@ -68,9 +71,20 @@ def formatdate(d)
   d.getutc.strftime('%Y%m%dT%H%M%S%z')
 end
 
+def get_user_code(q)
+  raise InvalidUserCodeError unless q.is_a? String
+  return ('00000' + q)[-5..-1]
+end
+
 server = WEBrick::HTTPServer.new(:Port => ENV['PORT'])
 server.mount_proc('/') do |req, res|
-  res['Content-Type'] = 'text/calendar'
-  res.body = main(req.query['usercode'])
+  begin
+    body = main(get_user_code(req.query['usercode']))
+  rescue InvalidUserCodeError
+    res.body = 'Invalid user code.'
+  else
+    res['Content-Type'] = 'text/calendar'
+    res.body = body
+  end
 end
 server.start
