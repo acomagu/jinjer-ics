@@ -1,6 +1,7 @@
 require 'mechanize'
 require 'json'
 require 'webrick'
+require 'date'
 
 Shift = Struct.new(:start, :end)
 
@@ -16,27 +17,35 @@ def main(user_code)
   cookies = agent.cookie_jar.cookies
   api_token = cookies.find{|cookie| cookie.name == 'api_token'}.value
   p api_token
-  body = agent.post(
-    'https://kintai.jinjer.biz/v1/manager/shifts/schedule_month_for_web',
-    {
-      :shop_ids => ENV['JINJER_SHOP_ID'],
-      :month => '7',
-      :year => '2017'
-    }, {
-      'Api-Token' => api_token
-    }
-  ).body
-  data = JSON.parse(body)
 
-  user = data['data'][0]['users'].find do |user|
-    user['user_info']['code'] == user_code
-  end
-
-  shifts = user['days'].map{ |day|
-    day['shifts'].map do |shifts|
-      Shift.new(Time.at(shifts['time_attend']), Time.at(shifts['time_out']))
+  shifts = (0..1).map{ |i|
+    body = agent.post(
+      'https://kintai.jinjer.biz/v1/manager/shifts/schedule_month_for_web',
+      {
+        :shop_ids => ENV['JINJER_SHOP_ID'],
+        :month => (DateTime.now >> i).to_time.month.to_s,
+        :year => (DateTime.now >> i).to_time.year.to_s,
+      }, {
+        'Api-Token' => api_token
+      }
+    ).body
+    next JSON.parse(body)
+  }.map{ |data|
+    data['data'][0]['users'].find do |user|
+      user['user_info']['code'] == user_code
     end
+  }.map{ |user|
+    if user.nil?
+      raise InvalidUserCodeError
+    end
+    user['days'].map{ |day|
+      day['shifts'].map do |shifts|
+        Shift.new(Time.at(shifts['time_attend']), Time.at(shifts['time_out']))
+      end
+    }
   }.flatten
+
+  p shifts
 
   return ([
     "BEGIN:VCALENDAR",
