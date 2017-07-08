@@ -5,10 +5,10 @@ require 'date'
 
 Shift = Struct.new(:start, :end)
 
-class InvalidUserCodeError < StandardError
+class InvalidQueryError < StandardError
 end
 
-def main(user_code)
+def main(email)
   agent = Mechanize.new
   p agent.post(
     "https://kintai.jinjer.biz/v1/manager/sign_in",
@@ -35,11 +35,11 @@ def main(user_code)
     next JSON.parse(body)
   }.map{ |data|
     data['data'][0]['users'].find do |user|
-      user['user_info']['code'] == user_code
+      user['user_info']['email'] == email
     end
   }.map{ |user|
     if user.nil?
-      raise InvalidUserCodeError
+      raise InvalidQueryError
     end
     user['days'].map{ |day|
       day['shifts'].map do |shifts|
@@ -71,17 +71,17 @@ def formatdate(d)
   d.getutc.strftime('%Y%m%dT%H%M%S%z')
 end
 
-def get_user_code(q)
-  raise InvalidUserCodeError unless q.is_a? String
-  return ('00000' + q)[-5..-1]
+def get_email(req)
+  raise InvalidQueryError unless req.query.has_key?('account')
+  return req.query['account'] + ENV['JINJER_EMAIL_SUFFIX']
 end
 
 server = WEBrick::HTTPServer.new(:Port => ENV['PORT'])
 server.mount_proc('/') do |req, res|
   begin
-    body = main(get_user_code(req.query['usercode']))
-  rescue InvalidUserCodeError
-    res.body = 'Invalid user code.'
+    body = main(get_email(req))
+  rescue InvalidQueryError
+    res.body = 'Invalid query.'
   else
     res['Content-Type'] = 'text/calendar'
     res.body = body
