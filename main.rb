@@ -2,6 +2,7 @@ require 'mechanize'
 require 'json'
 require 'webrick'
 require 'date'
+require 'parallel'
 
 Shift = Struct.new(:start, :end)
 
@@ -10,18 +11,16 @@ end
 
 def main(email)
   agent = Mechanize.new
-  p agent.post(
+  login =  agent.post(
     "https://kintai.jinjer.biz/v1/manager/sign_in",
     :company_code => ENV['JINJER_COMPANY_CODE'],
     :email => ENV['JINJER_EMAIL'],
     :password => ENV['JINJER_PASSWORD'],
-  )
-  p agent.get('https://kintai.jinjer.biz/manager/top')
-  cookies = agent.cookie_jar.cookies
-  api_token = cookies.find{|cookie| cookie.name == 'api_token'}.value
+  ).body
+  api_token = JSON.parse(login)['data']['token']
   p api_token
 
-  shifts = (0..1).map{ |i|
+  shifts = Parallel.map(0..1, in_threads: 2) { |i|
     body = agent.post(
       'https://kintai.jinjer.biz/v1/manager/shifts/schedule_month_for_web',
       {
